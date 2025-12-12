@@ -80,7 +80,7 @@ workflow NFCORE_RAREDISEASE {
     .set { ch_references }
 
     ch_bait_intervals           = ch_references.bait_intervals
-    ch_cadd_header              = channel.fromPath("$projectDir/assets/cadd_to_vcf_header_-1.0-.txt", checkIfExists: true).collect()
+    ch_cadd_header              = channel.fromPath("$projectDir/assets/cadd_to_vcf_header_-1.0-.txt", checkIfExists: true)
     ch_cadd_resources           = params.cadd_resources                     ? channel.fromPath(params.cadd_resources).collect()
                                                                             : channel.value([])
     ch_call_interval            = params.call_interval                      ? channel.fromPath(params.call_interval).map {it -> [[id:it.simpleName], it]}.collect()
