@@ -158,6 +158,7 @@ workflow RAREDISEASE {
     ch_vep_cache
     ch_vep_extra_files
     ch_versions
+    skip_alignment
     skip_me_calling
     skip_me_annotation
     skip_mt_annotation
@@ -181,6 +182,7 @@ workflow RAREDISEASE {
     skip_vcf2cytosure
     val_aligner
     val_analysis_type
+    val_bam_is_sortdupmarked
     val_cadd_resources
     val_concatenate_snv_calls
     val_extract_alignments
@@ -264,13 +266,14 @@ workflow RAREDISEASE {
         skip_fastp,
         val_aligner,
         val_analysis_type,
+        val_bam_is_sortdupmarked,
         val_extract_alignments,
         val_mbuffer_mem,
         val_mt_aligner,
         val_platform,
         val_run_mt_for_wes,
         val_samtools_sort_threads,
-        val_save_mapped_as_cram
+        val_save_mapped_as_cram,
     )
     .set { ch_mapped }
 
@@ -866,8 +869,10 @@ workflow RAREDISEASE {
     if (!skip_fastqc) {
         ch_multiqc_files = ch_multiqc_files.mix(fastqc_report.collect{_meta, reports -> reports}.ifEmpty([]))
     }
-    ch_multiqc_files = ch_multiqc_files.mix(ALIGN.out.fastp_json.map{_meta, reports -> reports}.collect().ifEmpty([]))
-    ch_multiqc_files = ch_multiqc_files.mix(ALIGN.out.markdup_metrics.map{_meta, reports -> reports}.collect().ifEmpty([]))
+    if (!skip_alignment) {    
+        ch_multiqc_files = ch_multiqc_files.mix(ALIGN.out.fastp_json.map{_meta, reports -> reports}.collect().ifEmpty([]))
+        ch_multiqc_files = ch_multiqc_files.mix(ALIGN.out.markdup_metrics.map{_meta, reports -> reports}.collect().ifEmpty([]))
+    }
     ch_multiqc_files = ch_multiqc_files.mix(QC_BAM.out.sex_check.map{_meta, reports -> reports}.collect().ifEmpty([]))
     ch_multiqc_files = ch_multiqc_files.mix(QC_BAM.out.multiple_metrics.map{_meta, reports -> reports}.collect().ifEmpty([]))
     ch_multiqc_files = ch_multiqc_files.mix(QC_BAM.out.hs_metrics.map{_meta, reports -> reports}.collect().ifEmpty([]))

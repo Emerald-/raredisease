@@ -45,6 +45,7 @@ workflow NFCORE_RAREDISEASE {
     ch_samples
     val_aligner
     val_analysis_type
+    val_bam_is_sortdupmarked
     val_bwa
     val_bwamem2
     val_bwameme
@@ -295,6 +296,7 @@ workflow NFCORE_RAREDISEASE {
     skip_vcf2cytosure          = parseSkipList(val_skip_tools, 'vcf2cytosure')
 
     // Subworkflows
+    skip_alignment             = parseSkipList(val_skip_subworkflows, 'alignment')
     skip_me_annotation         = parseSkipList(val_skip_subworkflows, 'me_annotation')
     skip_me_calling            = parseSkipList(val_skip_subworkflows, 'me_calling')
     skip_mt_annotation         = parseSkipList(val_skip_subworkflows, 'mt_annotation')
@@ -419,6 +421,7 @@ workflow NFCORE_RAREDISEASE {
         ch_vep_cache,
         ch_vep_extra_files,
         ch_versions,
+        skip_alignment,
         skip_me_calling,
         skip_me_annotation,
         skip_mt_annotation,
@@ -442,6 +445,7 @@ workflow NFCORE_RAREDISEASE {
         skip_vcf2cytosure,
         val_aligner,
         val_analysis_type,
+        val_bam_is_sortdupmarked,
         val_cadd_resources,
         val_concatenate_snv_calls,
         val_extract_alignments,
@@ -499,6 +503,7 @@ workflow {
         PIPELINE_INITIALISATION.out.samples,
         params.aligner,
         params.analysis_type,
+        params.bam_is_sortdupmarked,
         params.bwa,
         params.bwamem2,
         params.bwameme,
