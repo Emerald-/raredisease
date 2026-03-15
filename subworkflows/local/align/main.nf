@@ -33,6 +33,7 @@ workflow ALIGN {
         skip_fastp                // boolean
         val_aligner               //  string:  'bwa', 'bwamem2', 'bwameme', or 'sentieon'
         val_analysis_type         //  string:  'wgs', 'wes', or 'mito'
+        val_bam_is_sortdupmarked  // boolean
         val_extract_alignments    // boolean
         val_mbuffer_mem           // integer: [mandatory] memory in megabytes
         val_mt_aligner            //  string:  'bwa', 'bwamem2', or 'sentieon'
@@ -77,36 +78,37 @@ workflow ALIGN {
                 .map { meta, _bam, bai -> [meta, bai] }
                 .set{ch_input_bai}
 
-        if (val_aligner.matches("bwamem2|bwa|bwameme")) {
-            ALIGN_BWA_BWAMEM2_BWAMEME (
-                ch_genome_bwaindex,
-                ch_genome_bwamem2index,
-                ch_genome_bwamemeindex,
-                ch_genome_fai,
-                ch_genome_fasta,
-                ch_input_reads,
-                val_aligner,
-                val_extract_alignments,
-                val_mbuffer_mem,
-                val_platform,
-                val_samtools_sort_threads
-            )
-            ch_bwamem2_bam     = ALIGN_BWA_BWAMEM2_BWAMEME.out.marked_bam
-            ch_bwamem2_bai     = ALIGN_BWA_BWAMEM2_BWAMEME.out.marked_bai
-            ch_markdup_metrics = ALIGN_BWA_BWAMEM2_BWAMEME.out.metrics
-        } else if (val_aligner.equals("sentieon")) {
-            ALIGN_SENTIEON (
-                ch_genome_bwaindex,
-                ch_genome_fai,
-                ch_genome_fasta,
-                ch_input_reads,
-                val_extract_alignments,
-                val_platform
-            )
-            ch_sentieon_bam    = ALIGN_SENTIEON.out.marked_bam
-            ch_sentieon_bai    = ALIGN_SENTIEON.out.marked_bai
+        if (!val_bam_is_sortdupmarked) {
+            if (val_aligner.matches("bwamem2|bwa|bwameme")) {
+                ALIGN_BWA_BWAMEM2_BWAMEME (
+                    ch_genome_bwaindex,
+                    ch_genome_bwamem2index,
+                    ch_genome_bwamemeindex,
+                    ch_genome_fai,
+                    ch_genome_fasta,
+                    ch_input_reads,
+                    val_aligner,
+                    val_extract_alignments,
+                    val_mbuffer_mem,
+                    val_platform,
+                    val_samtools_sort_threads
+                )
+                ch_bwamem2_bam     = ALIGN_BWA_BWAMEM2_BWAMEME.out.marked_bam
+                ch_bwamem2_bai     = ALIGN_BWA_BWAMEM2_BWAMEME.out.marked_bai
+                ch_markdup_metrics = ALIGN_BWA_BWAMEM2_BWAMEME.out.metrics
+            } else if (val_aligner.equals("sentieon")) {
+                ALIGN_SENTIEON (
+                    ch_genome_bwaindex,
+                    ch_genome_fai,
+                    ch_genome_fasta,
+                    ch_input_reads,
+                    val_extract_alignments,
+                    val_platform
+                )
+                ch_sentieon_bam    = ALIGN_SENTIEON.out.marked_bam
+                ch_sentieon_bai    = ALIGN_SENTIEON.out.marked_bai
+            }
         }
-
         ch_genome_marked_bam     = channel.empty().mix(ch_bwamem2_bam, ch_sentieon_bam, ch_input_bam)
         ch_genome_marked_bai     = channel.empty().mix(ch_bwamem2_bai, ch_sentieon_bai, ch_input_bai)
         ch_genome_marked_bam_bai = ch_genome_marked_bam.join(ch_genome_marked_bai, failOnMismatch:true, failOnDuplicate:true)
