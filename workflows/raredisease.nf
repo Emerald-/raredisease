@@ -207,7 +207,28 @@ workflow RAREDISEASE {
 
     main:
 
-    ch_multiqc_files = channel.empty()
+    ch_multiqc_files                    = channel.empty()
+    ch_align_publish                    = channel.empty()
+    ch_qc_bam_publish                   = channel.empty()
+    ch_call_snv_publish                 = channel.empty()
+    ch_call_sv_publish                  = channel.empty()
+    ch_call_sv_mt_publish               = channel.empty()
+    ch_call_repeat_expansions_publish   = channel.empty()
+    ch_call_mobile_elements_publish     = channel.empty()
+    ch_subsample_publish                = channel.empty()
+    ch_annotate_genome_snvs_publish     = channel.empty()
+    ch_annotate_mt_snvs_publish         = channel.empty()
+    ch_annotate_sv_publish              = channel.empty()
+    ch_generate_cytosure_files_publish  = channel.empty()
+    ch_gens_publish                     = channel.empty()
+    ch_fastqc_publish                   = channel.empty()
+    ch_smncopynumbercaller_publish      = channel.empty()
+    ch_peddy_publish                    = channel.empty()
+    ch_multiqc_publish                  = channel.empty()
+    ch_rank_snv_publish                 = channel.empty()
+    ch_rank_mt_publish                  = channel.empty()
+    ch_rank_sv_publish                  = channel.empty()
+    ch_variant_evaluation_publish       = channel.empty()
 
     //
     // Input QC (ch_reads will be empty if fastq input isn't provided so FASTQC won't run if input is not fastq)
@@ -236,6 +257,9 @@ workflow RAREDISEASE {
     if (!skip_fastqc) {
         FASTQC (ch_input_fastqs)
         fastqc_report = FASTQC.out.zip
+        ch_fastqc_publish = FASTQC.out.html
+            .mix(FASTQC.out.zip)
+            .map { meta, value -> ["fastqc/${meta.id}/", [meta, value]] }
     }
 
 /*
@@ -276,6 +300,7 @@ workflow RAREDISEASE {
         val_save_mapped_as_cram,
     )
     .set { ch_mapped }
+    ch_align_publish = ALIGN.out.publish
 
     if (!(skip_mt_subsample) && (val_analysis_type.equals("wgs") || val_run_mt_for_wes)) {
         if (val_mt_subsample_approach.equals("fraction")) {
@@ -284,10 +309,12 @@ workflow RAREDISEASE {
                 val_mt_subsample_rd,
                 val_mt_subsample_seed
             )
+            ch_subsample_publish = SUBSAMPLE_MT_FRAC.out.publish
         } else {
             SUBSAMPLE_MT_READS(
                 ch_mapped.mt_bam_bai,
             )
+            ch_subsample_publish = SUBSAMPLE_MT_READS.out.publish
         }
     }
 
@@ -315,6 +342,7 @@ workflow RAREDISEASE {
         skip_ngsbits,
         skip_qualimap
     )
+    ch_qc_bam_publish = QC_BAM.out.publish
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -340,12 +368,17 @@ workflow RAREDISEASE {
             ch_genome_fasta,
             ch_genome_fai
         )
+        ch_call_repeat_expansions_publish = CALL_REPEAT_EXPANSIONS.out.publish
 
         if (!skip_repeat_annotation) {
             STRANGER (
                 CALL_REPEAT_EXPANSIONS.out.vcf,
                 ch_variant_catalog
             )
+            ch_call_repeat_expansions_publish = ch_call_repeat_expansions_publish
+                .mix(STRANGER.out.vcf
+                    .mix(STRANGER.out.tbi)
+                    .map { meta, value -> ['repeat_expansions/', [meta, value]] })
         }
     }
 
@@ -387,6 +420,7 @@ workflow RAREDISEASE {
             val_run_mt_for_wes,
             val_variant_caller
         )
+        ch_call_snv_publish = CALL_SNV.out.publish
 
         //
         // ANNOTATE GENOME SNVs
@@ -413,6 +447,7 @@ workflow RAREDISEASE {
                 val_genome,
                 val_vep_cache_version
             ).set { ch_snv_annotate }
+            ch_annotate_genome_snvs_publish = ANNOTATE_GENOME_SNVS.out.publish
 
             ch_snv_annotate.vcf_ann
                 .multiMap { meta, vcf ->
@@ -438,7 +473,8 @@ workflow RAREDISEASE {
             ANN_CSQ_PLI_SNV (
                 ch_variant_consequences_snv,
                 ch_ann_csq_snv_in,
-                false
+                false,
+                ''
             )
 
             ANN_CSQ_PLI_SNV.out.vcf_ann
@@ -457,6 +493,7 @@ workflow RAREDISEASE {
                 ch_ranksnv_nuclear_in,
                 false
             )
+            ch_rank_snv_publish = RANK_VARIANTS_SNV.out.publish
         }
 
         //
@@ -482,6 +519,7 @@ workflow RAREDISEASE {
                 val_homoplasmy_af_threshold,
                 val_vep_cache_version
             ).set { ch_mt_annotate }
+            ch_annotate_mt_snvs_publish = ch_mt_annotate.publish
 
             ch_mt_annotate.vcf_ann
                 .multiMap { meta, vcf ->
@@ -507,7 +545,8 @@ workflow RAREDISEASE {
             ANN_CSQ_PLI_MT(
                 ch_variant_consequences_snv,
                 ch_ann_csq_mtsnv_in,
-                false
+                false,
+                ''
             )
 
             ANN_CSQ_PLI_MT.out.vcf_ann
@@ -526,6 +565,7 @@ workflow RAREDISEASE {
                 ch_ranksnv_mt_in,
                 false
             )
+            ch_rank_mt_publish = RANK_VARIANTS_MT.out.publish
         }
     }
 
@@ -553,6 +593,8 @@ workflow RAREDISEASE {
             val_analysis_type,
             skip_germlinecnvcaller,
         )
+        ch_call_sv_publish = CALL_STRUCTURAL_VARIANTS.out.publish
+
         //
         // ANNOTATE STRUCTURAL VARIANTS
         //
@@ -570,6 +612,7 @@ workflow RAREDISEASE {
                 val_genome,
                 val_vep_cache_version
             ).set { ch_sv_annotate }
+            ch_annotate_sv_publish = ch_sv_annotate.publish
 
             ch_sv_annotate.vcf_ann
                 .multiMap { meta, vcf ->
@@ -595,7 +638,8 @@ workflow RAREDISEASE {
             ANN_CSQ_PLI_SV (
                 ch_variant_consequences_sv,
                 ch_ann_csq_sv_in,
-                false
+                false,
+                ''
             )
 
             ANN_CSQ_PLI_SV.out.vcf_ann
@@ -614,6 +658,7 @@ workflow RAREDISEASE {
                 ch_ranksnv_sv_in,
                 true
             )
+            ch_rank_sv_publish = RANK_VARIANTS_SV.out.publish
         }
     }
 /*
@@ -649,6 +694,7 @@ workflow RAREDISEASE {
             params.split_distance_threshold,
             params.split_length
         )
+        ch_call_sv_mt_publish = CALL_SV_MT.out.publish
     }
 
 /*
@@ -665,6 +711,7 @@ workflow RAREDISEASE {
             ch_genome_fasta,
             ch_me_references
         )
+        ch_call_mobile_elements_publish = CALL_MOBILE_ELEMENTS.out.publish
 
         if (!skip_me_annotation) {
             ANNOTATE_MOBILE_ELEMENTS(
@@ -702,8 +749,11 @@ workflow RAREDISEASE {
             ANN_CSQ_PLI_ME(
                 ch_variant_consequences_sv,
                 ch_ann_csq_me_in,
-                true
+                true,
+                'annotate_mobile_elements/'
             )
+            ch_call_mobile_elements_publish = ch_call_mobile_elements_publish
+                .mix(ANN_CSQ_PLI_ME.out.publish)
 
         }
     }
@@ -734,6 +784,9 @@ workflow RAREDISEASE {
         SMNCOPYNUMBERCALLER (
             ch_bams_bais
         )
+        ch_smncopynumbercaller_publish = SMNCOPYNUMBERCALLER.out.smncopynumber
+            .mix(SMNCOPYNUMBERCALLER.out.run_metrics)
+            .map { meta, value -> ['smncopynumbercaller/', [meta, value]] }
     }
 
 /*
@@ -747,6 +800,17 @@ workflow RAREDISEASE {
             ch_pedfile.map{ped -> return[[id:"pedigree"], ped]},
             [[:],[]]
         )
+        ch_peddy_publish = PEDDY.out.vs_html
+            .mix(PEDDY.out.html)
+            .mix(PEDDY.out.ped)
+            .mix(PEDDY.out.het_check_png)
+            .mix(PEDDY.out.ped_check_png)
+            .mix(PEDDY.out.sex_check_png)
+            .mix(PEDDY.out.het_check_csv)
+            .mix(PEDDY.out.ped_check_csv)
+            .mix(PEDDY.out.sex_check_csv)
+            .mix(PEDDY.out.ped_check_rel_difference_csv)
+            .map { meta, value -> ['peddy/', [meta, value]] }
     }
 
 /*
@@ -763,6 +827,7 @@ workflow RAREDISEASE {
             ch_sv_annotate.vcf_ann,
             val_sample_id_map
         )
+        ch_generate_cytosure_files_publish = GENERATE_CYTOSURE_FILES.out.publish
     }
 
 /*
@@ -783,6 +848,7 @@ workflow RAREDISEASE {
             ch_gens_pon_female,
             ch_gens_pon_male
         )
+        ch_gens_publish = GENS.out.publish
     }
 
 /*
@@ -797,6 +863,7 @@ workflow RAREDISEASE {
             ch_sdf,
             CALL_SNV.out.genome_vcf_tabix
         )
+        ch_variant_evaluation_publish = VARIANT_EVALUATION.out.publish
     }
 
 /*
@@ -896,9 +963,34 @@ workflow RAREDISEASE {
         [],
         ch_multiqc_samples
     )
+    ch_multiqc_publish = MULTIQC.out.report
+        .mix(MULTIQC.out.data)
+        .mix(MULTIQC.out.plots)
+        .map { value -> ['multiqc/', [value]] }
 
     emit:multiqc_report = MULTIQC.out.report.toList() // channel: /path/to/multiqc_report.html
     versions       = ch_versions                 // channel: [ path(versions.yml) ]
+    publish        = ch_align_publish
+                       .mix(ch_qc_bam_publish)
+                       .mix(ch_subsample_publish)
+                       .mix(ch_call_snv_publish)
+                       .mix(ch_call_sv_publish)
+                       .mix(ch_call_sv_mt_publish)
+                       .mix(ch_call_repeat_expansions_publish)
+                       .mix(ch_call_mobile_elements_publish)
+                       .mix(ch_annotate_genome_snvs_publish)
+                       .mix(ch_annotate_mt_snvs_publish)
+                       .mix(ch_annotate_sv_publish)
+                       .mix(ch_generate_cytosure_files_publish)
+                       .mix(ch_gens_publish)
+                       .mix(ch_fastqc_publish)
+                       .mix(ch_smncopynumbercaller_publish)
+                       .mix(ch_peddy_publish)
+                       .mix(ch_multiqc_publish)
+                       .mix(ch_rank_snv_publish)
+                       .mix(ch_rank_mt_publish)
+                       .mix(ch_rank_sv_publish)
+                       .mix(ch_variant_evaluation_publish) // channel: [ val(destination), val(value) ]
 
 }
 
