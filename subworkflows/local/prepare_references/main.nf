@@ -38,6 +38,7 @@ workflow PREPARE_REFERENCES {
     take:
         val_aligner                  // String: "bwa", "bwamem2", "sentieon" or "bwameme"
         val_analysis_type            // String: "wgs", "wes", or "mito"
+        val_bam_is_sortdupmarked      // Boolean
         val_bwa                      // String: path to bwa index
         val_bwamem2                  // String: path to bwamem2 index
         val_bwameme                  // String: path to bwameme index
@@ -108,27 +109,29 @@ workflow PREPARE_REFERENCES {
         //
         // Genome alignment indices
         //
-        if (!val_bwa) {
-            if (!val_aligner.equals("sentieon") || val_mtaligner.equals("bwa")) {
-                ch_bwa      = BWA_INDEX_GENOME(ch_genome_fasta).index.collect()
+        if (!val_bam_is_sortdupmarked) {
+            if (!val_bwa) {
+                if (!val_aligner.equals("sentieon") || val_mtaligner.equals("bwa")) {
+                    ch_bwa      = BWA_INDEX_GENOME(ch_genome_fasta).index.collect()
+                }
+                if (val_aligner.equals("sentieon") || val_mtaligner.equals("sentieon")) {
+                    ch_bwa      = SENTIEON_BWAINDEX_GENOME(ch_genome_fasta).index.collect()
+                }
+            } else if (val_bwa) {
+                ch_bwa = channel.fromPath(val_bwa).map {it -> [[id:it.simpleName], it]}.collect()
             }
-            if (val_aligner.equals("sentieon") || val_mtaligner.equals("sentieon")) {
-                ch_bwa      = SENTIEON_BWAINDEX_GENOME(ch_genome_fasta).index.collect()
+
+            if (!val_bwamem2 && (val_aligner.equals("bwamem2") || val_mtaligner.equals("bwamem2"))) {
+                ch_genome_bwamem2_index = BWAMEM2_INDEX_GENOME(ch_genome_fasta).index.collect()
+            } else if (val_bwamem2) {
+                ch_genome_bwamem2_index = channel.fromPath(val_bwamem2).map {it -> [[id:it.simpleName], it]}.collect()
             }
-        } else if (val_bwa) {
-            ch_bwa = channel.fromPath(val_bwa).map {it -> [[id:it.simpleName], it]}.collect()
-        }
 
-        if (!val_bwamem2 && (val_aligner.equals("bwamem2") || val_mtaligner.equals("bwamem2"))) {
-            ch_genome_bwamem2_index = BWAMEM2_INDEX_GENOME(ch_genome_fasta).index.collect()
-        } else if (val_bwamem2) {
-            ch_genome_bwamem2_index = channel.fromPath(val_bwamem2).map {it -> [[id:it.simpleName], it]}.collect()
-        }
-
-        if (!val_bwamem2 && val_aligner.equals("bwameme")) {
-            ch_genome_bwameme_index = BWAMEME_INDEX_GENOME(ch_genome_fasta).index.collect()
-        } else if (val_bwameme) {
-            ch_genome_bwameme_index = channel.fromPath(val_bwameme).map {it -> [[id:it.simpleName], it]}.collect()
+            if (!val_bwamem2 && val_aligner.equals("bwameme")) {
+                ch_genome_bwameme_index = BWAMEME_INDEX_GENOME(ch_genome_fasta).index.collect()
+            } else if (val_bwameme) {
+                ch_genome_bwameme_index = channel.fromPath(val_bwameme).map {it -> [[id:it.simpleName], it]}.collect()
+            }
         }
         //
         // MT genome indices

@@ -132,6 +132,7 @@ workflow NFCORE_RAREDISEASE {
     PREPARE_REFERENCES (
         val_aligner,
         val_analysis_type,
+        val_bam_is_sortdupmarked,
         val_bwa,
         val_bwamem2,
         val_bwameme,
